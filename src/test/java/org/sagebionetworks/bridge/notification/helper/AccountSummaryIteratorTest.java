@@ -79,7 +79,7 @@ public class AccountSummaryIteratorTest {
         // Create iterator. Verify initial call to server.
         AccountSummaryIterator iter = new AccountSummaryIterator(mockClientManager, STUDY_ID);
         verify(mockApi).getParticipants(STUDY_ID, 0, AccountSummaryIterator.PAGE_SIZE, null,
-                null, null, null);
+                "1", null, null);
 
         // Make a few extra calls to hasNext(). Verify that no server calls are made
         assertTrue(iter.hasNext());
@@ -98,7 +98,7 @@ public class AccountSummaryIteratorTest {
         Call<AccountSummaryList> mockPageCall = mock(Call.class);
         when(mockPageCall.execute()).thenThrow(IOException.class);
         when(mockApi.getParticipants(STUDY_ID, 0, AccountSummaryIterator.PAGE_SIZE, null,
-                null, null, null)).thenReturn(mockPageCall);
+                "1", null, null)).thenReturn(mockPageCall);
 
         // Execute
         new AccountSummaryIterator(mockClientManager, STUDY_ID);
@@ -114,7 +114,7 @@ public class AccountSummaryIteratorTest {
         Call<AccountSummaryList> mockSecondPageCall = mock(Call.class);
         when(mockSecondPageCall.execute()).thenThrow(IOException.class).thenReturn(secondPageResponse);
         when(mockApi.getParticipants(STUDY_ID, 1, AccountSummaryIterator.PAGE_SIZE, null,
-                null, null, null)).thenReturn(mockSecondPageCall);
+                "1", null, null)).thenReturn(mockSecondPageCall);
 
         mockApiWithPage(2, 1, 3);
 
@@ -169,7 +169,7 @@ public class AccountSummaryIteratorTest {
         Call<AccountSummaryList> mockPageCall = mock(Call.class);
         when(mockPageCall.execute()).thenReturn(pageResponse);
         when(mockApi.getParticipants(STUDY_ID, offset, AccountSummaryIterator.PAGE_SIZE, null,
-                null, null, null)).thenReturn(mockPageCall);
+                "1", null, null)).thenReturn(mockPageCall);
     }
 
     private Response<AccountSummaryList> makePageResponse(int offset, int accountsInPage, int total) {
