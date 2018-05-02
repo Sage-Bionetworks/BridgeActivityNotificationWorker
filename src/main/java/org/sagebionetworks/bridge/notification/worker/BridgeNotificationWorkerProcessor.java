@@ -31,13 +31,16 @@ import org.sagebionetworks.bridge.sqs.PollSqsWorkerBadRequestException;
 import org.sagebionetworks.bridge.time.DateUtils;
 import org.sagebionetworks.bridge.worker.ThrowingConsumer;
 
-// todo doc
+/** Worker that sends notifications when users do not engage with the study burst. */
 @Component("ActivityNotificationWorker")
 public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonNode> {
     private static final Logger LOG = LoggerFactory.getLogger(BridgeNotificationWorkerProcessor.class);
 
+    // If there are a lot of users, write log messages regularly so we know the worker is still running.
     private static final int REPORTING_INTERVAL = 250;
 
+    private static final int MIN_TIMEZONE_OFFSET_MILLIS = -11 * 60 * 60 * 1000;
+    private static final int MAX_TIMEZONE_OFFSET_MILLIS = -1 * 60 * 60 * 1000;
     static final String REQUEST_PARAM_DATE = "date";
     static final String REQUEST_PARAM_STUDY_ID = "studyId";
     static final String REQUEST_PARAM_TAG = "tag";
@@ -47,21 +50,24 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
     private BridgeHelper bridgeHelper;
     private DynamoHelper dynamoHelper;
 
+    /** Bridge helper. */
     @Autowired
     public final void setBridgeHelper(BridgeHelper bridgeHelper) {
         this.bridgeHelper = bridgeHelper;
     }
 
+    /** DynamoDB Helper. */
     @Autowired
     public final void setDynamoHelper(DynamoHelper dynamoHelper) {
         this.dynamoHelper = dynamoHelper;
     }
 
-    /** Set rate limit, in users per second. */
+    /** Set rate limit, in users per second. This is primarily to allow unit tests to run without being throttled. */
     public final void setPerUserRateLimit(double rate) {
         perUserRateLimiter.setRate(rate);
     }
 
+    /** Main entry point into the Notification Worker. */
     @Override
     public void accept(JsonNode jsonNode) throws PollSqsWorkerBadRequestException {
         // Get request args
@@ -70,6 +76,9 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         if (studyIdNode == null || studyIdNode.isNull()) {
             throw new PollSqsWorkerBadRequestException("studyId must be specified");
         }
+        if (!studyIdNode.isTextual()) {
+            throw new PollSqsWorkerBadRequestException("studyId must be a string");
+        }
         String studyId = studyIdNode.textValue();
 
         // date
@@ -77,12 +86,15 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         if (dateNode == null || dateNode.isNull()) {
             throw new PollSqsWorkerBadRequestException("date must be specified");
         }
+        if (!dateNode.isTextual()) {
+            throw new PollSqsWorkerBadRequestException("date must be a string");
+        }
 
         String dateString = dateNode.textValue();
         LocalDate date;
         try {
             date = LocalDate.parse(dateString);
-        } catch (IllegalArgumentException | NullPointerException ex) {
+        } catch (IllegalArgumentException ex) {
             throw new PollSqsWorkerBadRequestException("date must be in the format YYYY-MM-DD");
         }
 
@@ -132,8 +144,8 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         LOG.info("Finished processing request for study " + studyId + " and date " + dateString);
     }
 
-    private void processAccountForDate(String studyId, LocalDate date, AccountSummary accountSummary)
-            throws IOException {
+    // Processes a single user for the given date. Package-scoped for unit tests.
+    void processAccountForDate(String studyId, LocalDate date, AccountSummary accountSummary) throws IOException {
         // Get participant. We'll need some attributes.
         StudyParticipant participant = bridgeHelper.getParticipant(studyId, accountSummary.getId());
 
@@ -156,6 +168,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         }
     }
 
+    // Helper method to determine if a user is ineligible for receiving notifications.
     private boolean shouldExcludeUser(String studyId, StudyParticipant participant) {
         WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
         Set<String> excludedDataGroupSet = workerConfig.getExcludedDataGroupSet();
@@ -167,6 +180,14 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
 
         // Users without timezones can't be processed
         if (participant.getTimeZone() == null) {
+            return true;
+        }
+
+        // Users with timezone < UTC-11 or > UTC-1 should be excluded. This is because we'd end up sending at unusually
+        // early or unusually late hours.
+        DateTimeZone timeZone = DateUtils.parseZoneFromOffsetString(participant.getTimeZone());
+        int timeZoneOffsetMillis = timeZone.getOffset(DateTime.now());
+        if (timeZoneOffsetMillis < MIN_TIMEZONE_OFFSET_MILLIS || timeZoneOffsetMillis > MAX_TIMEZONE_OFFSET_MILLIS) {
             return true;
         }
 
@@ -193,13 +214,14 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         return false;
     }
 
+    // Helper method to determine if the user has signed the required consent(s).
     private boolean isUserConsented(String studyId, StudyParticipant participant) {
         // Check each required subpop. The user must have signed that consent.
         WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
         Map<String, List<UserConsentHistory>> consentsBySubpop = participant.getConsentHistories();
         for (String oneRequiredSubpopGuid : workerConfig.getRequiredSubpopulationGuidSet()) {
             List<UserConsentHistory> oneConsentList = consentsBySubpop.get(oneRequiredSubpopGuid);
-            if (oneConsentList == null || oneConsentList.isEmpty()) {
+            if (oneConsentList.isEmpty()) {
                 return false;
             }
 
@@ -214,6 +236,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         return true;
     }
 
+    // Helper method to determine the study burst event that we should be processing for this user.
     private ActivityEvent getCurrentActivityBurstEventForParticipant(String studyId, LocalDate date,
             StudyParticipant participant) throws IOException {
         WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
@@ -252,6 +275,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         return null;
     }
 
+    // Helper method which looks at the participant's activities to determine if we should send a notification.
     private boolean shouldSendNotificationToUser(String studyId, LocalDate date, StudyParticipant participant,
             ActivityEvent burstEvent) {
         String userId = participant.getId();
@@ -265,7 +289,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         // how scheduling works, we might have tasks scheduled on midnight before the start of the activity burst.
         DateTimeZone timeZone = DateUtils.parseZoneFromOffsetString(participant.getTimeZone());
         LocalDate burstStartDate = burstEvent.getTimestamp().withZone(timeZone).toLocalDate();
-        DateTime activityRangeStart = burstStartDate.toDateTimeAtStartOfDay();
+        DateTime activityRangeStart = burstStartDate.toDateTimeAtStartOfDay(timeZone);
         DateTime activityRangeEnd = date.plusDays(1).toDateTimeAtStartOfDay(timeZone);
         Iterator<ScheduledActivity> activityIterator = bridgeHelper.getTaskHistory(studyId, userId, taskId,
                 activityRangeStart, activityRangeEnd);
@@ -320,6 +344,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         return false;
     }
 
+    // Encapsulates sending an SMS notification to the user.
     private void notifyUser(String studyId, StudyParticipant participant) throws IOException {
         String userId = participant.getId();
         WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);

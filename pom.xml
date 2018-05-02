@@ -147,10 +147,7 @@
                 <configuration>
                     <excludes>
                         <!-- config is inherently not testable -->
-                        <exclude>org/sagebionetworks/bridge/fitbit/config/*</exclude>
-
-                        <!-- constants are also not testable -->
-                        <exclude>org/sagebionetworks/bridge/fitbit/worker/Constants.class</exclude>
+                        <exclude>org/sagebionetworks/bridge/notification/config/*</exclude>
                     </excludes>
                     <rules>
                         <rule>
@@ -159,12 +156,12 @@
                                 <limit>
                                     <counter>INSTRUCTION</counter>
                                     <value>COVEREDRATIO</value>
-                                    <minimum>0.10</minimum>
+                                    <minimum>0.80</minimum>
                                 </limit>
                                 <limit>
                                     <counter>BRANCH</counter>
                                     <value>COVEREDRATIO</value>
-                                    <minimum>0.10</minimum>
+                                    <minimum>0.80</minimum>
                                 </limit>
                             </limits>
                         </rule>
