@@ -225,9 +225,10 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
                 return false;
             }
 
-            // Newest consent is always at the end.
+            // Newest consent is always at the end. If consent signature exists and is not withdrawn, then the user is
+            // consented. This is consistent with the 412 logic in BridgePF.
             UserConsentHistory newestConsent = oneConsentList.get(oneConsentList.size() - 1);
-            if (!newestConsent.getHasSignedActiveConsent() || newestConsent.getWithdrewOn() != null) {
+            if (newestConsent.getWithdrewOn() != null) {
                 return false;
             }
         }

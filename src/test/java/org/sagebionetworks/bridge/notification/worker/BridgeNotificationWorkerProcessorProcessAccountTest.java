@@ -180,13 +180,6 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
     }
 
     @Test
-    public void consentOutdated() throws Exception {
-        consentHistoryMap.get(REQUIRED_SUBPOP_2).get(1).setHasSignedActiveConsent(false);
-        processor.processAccountForDate(STUDY_ID, TEST_DATE, ACCOUNT_SUMMARY);
-        verifyNoNotification();
-    }
-
-    @Test
     public void consentWithdrawn() throws Exception {
         consentHistoryMap.get(REQUIRED_SUBPOP_1).get(1).setWithdrewOn(ENROLLMENT_TIME);
         processor.processAccountForDate(STUDY_ID, TEST_DATE, ACCOUNT_SUMMARY);
