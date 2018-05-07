@@ -1,7 +1,9 @@
 package org.sagebionetworks.bridge.notification.worker;
 
+import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 /** Encapsulates configuration values necessary to determine if and when to send notifications. */
@@ -9,12 +11,16 @@ public class WorkerConfig {
     private int burstDurationDays;
     private Set<String> burstStartEventIdSet = ImmutableSet.of();
     private String burstTaskId;
+    private int earlyLateCutoffDays;
     private Set<String> excludedDataGroupSet = ImmutableSet.of();
+    private Map<String, String> missedCumulativeActivitiesMessagesByDataGroup = ImmutableMap.of();
+    private Map<String, String> missedEarlyActivitiesMessagesByDataGroup = ImmutableMap.of();
+    private Map<String, String> missedLaterActivitiesMessagesByDataGroup = ImmutableMap.of();
     private int notificationBlackoutDaysFromStart;
     private int notificationBlackoutDaysFromEnd;
-    private String notificationMessage;
     private int numMissedConsecutiveDaysToNotify;
     private int numMissedDaysToNotify;
+    private Set<String> requiredDataGroupsOneOfSet = ImmutableSet.of();
     private Set<String> requiredSubpopulationGuidSet = ImmutableSet.of();
 
     /** The length of the study burst, in days. */
@@ -47,6 +53,20 @@ public class WorkerConfig {
         this.burstTaskId = burstTaskId;
     }
 
+    /**
+     * Number of days that have passed in the burst before we consider it "late burst". This doesn't include today's
+     * date. If this is set to 0, all days are considered "late burst". If this is set to 1, the first day is
+     * considered "early", and the rest are considered "late". And so forth.
+     */
+    public int getEarlyLateCutoffDays() {
+        return earlyLateCutoffDays;
+    }
+
+    /** @see #getEarlyLateCutoffDays */
+    public void setEarlyLateCutoffDays(int earlyLateCutoffDays) {
+        this.earlyLateCutoffDays = earlyLateCutoffDays;
+    }
+
     /** Set of data groups that will never receive notifications. */
     public Set<String> getExcludedDataGroupSet() {
         return excludedDataGroupSet;
@@ -55,6 +75,51 @@ public class WorkerConfig {
     /** @see #getExcludedDataGroupSet */
     public void setExcludedDataGroupSet(Set<String> excludedDataGroupSet) {
         this.excludedDataGroupSet = excludedDataGroupSet != null ? excludedDataGroupSet : ImmutableSet.of();
+    }
+
+    /**
+     * Messages to send if the participant misses a cumulative total of activities during this study burst, keyed by
+     * data group. The keys in this set should match the keys in {@link #getRequiredDataGroupsOneOfSet}.
+     */
+    public Map<String, String> getMissedCumulativeActivitiesMessagesByDataGroup() {
+        return missedCumulativeActivitiesMessagesByDataGroup;
+    }
+
+    /** @see #getMissedCumulativeActivitiesMessagesByDataGroup */
+    public void setMissedCumulativeActivitiesMessagesByDataGroup(
+            Map<String, String> missedCumulativeActivitiesMessagesByDataGroup) {
+        this.missedCumulativeActivitiesMessagesByDataGroup = missedCumulativeActivitiesMessagesByDataGroup != null ?
+                missedCumulativeActivitiesMessagesByDataGroup : ImmutableMap.of();
+    }
+
+    /**
+     * Messages to send if the participant misses consecutive activities early in the study burst, keyed by data group.
+     * The keys in this set should match the keys in {@link #getRequiredDataGroupsOneOfSet}.
+     */
+    public Map<String, String> getMissedEarlyActivitiesMessagesByDataGroup() {
+        return missedEarlyActivitiesMessagesByDataGroup;
+    }
+
+    /** @see #getMissedEarlyActivitiesMessagesByDataGroup */
+    public void setMissedEarlyActivitiesMessagesByDataGroup(
+            Map<String, String> missedEarlyActivitiesMessagesByDataGroup) {
+        this.missedEarlyActivitiesMessagesByDataGroup = missedEarlyActivitiesMessagesByDataGroup != null ?
+                missedEarlyActivitiesMessagesByDataGroup : ImmutableMap.of();
+    }
+
+    /**
+     * Messages to send if the participant misses consecutive activities late in the study burst, keyed by data group.
+     * The keys in this set should match the keys in {@link #getRequiredDataGroupsOneOfSet}.
+     */
+    public Map<String, String> getMissedLaterActivitiesMessagesByDataGroup() {
+        return missedLaterActivitiesMessagesByDataGroup;
+    }
+
+    /** @see #getMissedLaterActivitiesMessagesByDataGroup */
+    public void setMissedLaterActivitiesMessagesByDataGroup(
+            Map<String, String> missedLaterActivitiesMessagesByDataGroup) {
+        this.missedLaterActivitiesMessagesByDataGroup = missedLaterActivitiesMessagesByDataGroup != null ?
+                missedLaterActivitiesMessagesByDataGroup : ImmutableMap.of();
     }
 
     /** Number of days at the start of the study burst where we don't send notifications. */
@@ -77,16 +142,6 @@ public class WorkerConfig {
         this.notificationBlackoutDaysFromEnd = notificationBlackoutDaysFromEnd;
     }
 
-    /** Notification message to send. */
-    public String getNotificationMessage() {
-        return notificationMessage;
-    }
-
-    /** @see #getNotificationMessage */
-    public void setNotificationMessage(String notificationMessage) {
-        this.notificationMessage = notificationMessage;
-    }
-
     /** Number of consecutive days of missed activities before we send a notification. */
     public int getNumMissedConsecutiveDaysToNotify() {
         return numMissedConsecutiveDaysToNotify;
@@ -105,6 +160,17 @@ public class WorkerConfig {
     /** @see #getNumMissedDaysToNotify */
     public void setNumMissedDaysToNotify(int numMissedDaysToNotify) {
         this.numMissedDaysToNotify = numMissedDaysToNotify;
+    }
+
+    /** Participant must be in one of these data groups to receive notifications. */
+    public Set<String> getRequiredDataGroupsOneOfSet() {
+        return requiredDataGroupsOneOfSet;
+    }
+
+    /** @see #getRequiredDataGroupsOneOfSet */
+    public void setRequiredDataGroupsOneOfSet(Set<String> requiredDataGroupsOneOfSet) {
+        this.requiredDataGroupsOneOfSet = requiredDataGroupsOneOfSet != null ? requiredDataGroupsOneOfSet :
+                ImmutableSet.of();
     }
 
     /** Set of subpopulations that the participant must be consented to in order to receive notifications. */

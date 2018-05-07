@@ -163,8 +163,9 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         }
 
         // Determine if we need to notify the user.
-        if (shouldSendNotificationToUser(studyId, date, participant, burstEvent)) {
-            notifyUser(studyId, participant);
+        NotificationType notificationType = getNotificationTypeForUser(studyId, date, participant, burstEvent);
+        if (notificationType != null) {
+            notifyUser(studyId, participant, notificationType);
         }
     }
 
@@ -172,6 +173,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
     private boolean shouldExcludeUser(String studyId, StudyParticipant participant) {
         WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
         Set<String> excludedDataGroupSet = workerConfig.getExcludedDataGroupSet();
+        Set<String> requiredDataGroupsOneOfSet = workerConfig.getRequiredDataGroupsOneOfSet();
 
         // Unverified phone numbers can't be notified
         if (Boolean.FALSE.equals(participant.getPhoneVerified())) {
@@ -196,18 +198,28 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
             return true;
         }
 
+        // Check required and excluded data groups.
         // If the user has any of the excluded data groups, exclude the user
+        boolean foundRequiredGroup = false;
         for (String oneUserDataGroup : participant.getDataGroups()) {
             if (excludedDataGroupSet.contains(oneUserDataGroup)) {
                 return true;
             }
+            if (requiredDataGroupsOneOfSet.contains(oneUserDataGroup)) {
+                foundRequiredGroup = true;
+            }
+        }
+        if (!foundRequiredGroup) {
+            return true;
         }
 
         // If user was already sent a notification in the last burst duration, don't send another one
-        Long notificationTime = dynamoHelper.getLastNotificationTimeForUser(participant.getId());
-        if (notificationTime != null && notificationTime > DateTime.now()
-                .minusDays(workerConfig.getBurstDurationDays()).getMillis()) {
-            return true;
+        UserNotification lastNotification = dynamoHelper.getLastNotificationTimeForUser(participant.getId());
+        if (lastNotification != null) {
+            long notificationTime = lastNotification.getTime();
+            if (notificationTime > DateTime.now().minusDays(workerConfig.getBurstDurationDays()).getMillis()) {
+                return true;
+            }
         }
 
         // We've checked all the exclude conditions. Do not exclude user.
@@ -277,7 +289,8 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
     }
 
     // Helper method which looks at the participant's activities to determine if we should send a notification.
-    private boolean shouldSendNotificationToUser(String studyId, LocalDate date, StudyParticipant participant,
+    // Returns the notification type (or null if we shouldn't send a notification).
+    private NotificationType getNotificationTypeForUser(String studyId, LocalDate date, StudyParticipant participant,
             ActivityEvent burstEvent) {
         String userId = participant.getId();
 
@@ -298,7 +311,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         // If the user somehow has no activities with this task ID, don't notify the user. The account is probably not
         // fully bootstrapped, and we should avoid sending them a notification.
         if (!activityIterator.hasNext()) {
-            return false;
+            return null;
         }
 
         // Map the events by scheduled date so it's easier to work with.
@@ -318,12 +331,13 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         // Check today's activities first. If they did today's activities, don't bother notifying.
         ScheduledActivity todaysActivity = activitiesByDate.get(date);
         if (todaysActivity != null && todaysActivity.getStatus() == ScheduleStatus.FINISHED) {
-            return false;
+            return null;
         }
 
         // Loop through activities in order by date
         int daysMissed = 0;
         int consecutiveDaysMissed = 0;
+        int numDays = 0;
         for (LocalDate d = burstStartDate; !d.isAfter(date); d = d.plusDays(1)) {
             ScheduledActivity daysActivity = activitiesByDate.get(d);
             if (daysActivity == null || daysActivity.getStatus() != ScheduleStatus.FINISHED) {
@@ -331,31 +345,72 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
                 consecutiveDaysMissed++;
 
                 if (daysMissed >= numMissedDaysToNotify) {
-                    return true;
+                    return NotificationType.CUMULATIVE;
                 }
                 if (consecutiveDaysMissed >= numMissedConsecutiveDaysToNotify) {
-                    return true;
+                    if (numDays < workerConfig.getEarlyLateCutoffDays()) {
+                        return NotificationType.EARLY;
+                    } else {
+                        return NotificationType.LATE;
+                    }
                 }
             } else {
                 consecutiveDaysMissed = 0;
             }
+
+            // Increment the day counter so we can determine early vs late.
+            numDays++;
         }
 
         // If we make it this far, we've determined we don't need to notify.
-        return false;
+        return null;
     }
 
     // Encapsulates sending an SMS notification to the user.
-    private void notifyUser(String studyId, StudyParticipant participant) throws IOException {
+    private void notifyUser(String studyId, StudyParticipant participant, NotificationType notificationType)
+            throws IOException {
         String userId = participant.getId();
         WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
 
-        LOG.info("Sending notification to user " + userId);
+        // Get notification messages for type.
+        Map<String, String> messagesByDataGroup;
+        switch (notificationType) {
+            case CUMULATIVE:
+                messagesByDataGroup = workerConfig.getMissedCumulativeActivitiesMessagesByDataGroup();
+                break;
+            case EARLY:
+                messagesByDataGroup = workerConfig.getMissedEarlyActivitiesMessagesByDataGroup();
+                break;
+            case LATE:
+                messagesByDataGroup = workerConfig.getMissedLaterActivitiesMessagesByDataGroup();
+                break;
+            default:
+                throw new IllegalStateException("Unexpected type " + notificationType);
+        }
+
+        // Narrow down notification messages for data group.
+        String message = null;
+        for (String oneDataGroup : participant.getDataGroups()) {
+            if (messagesByDataGroup.containsKey(oneDataGroup)) {
+                message = messagesByDataGroup.get(oneDataGroup);
+                break;
+            }
+        }
+        if (message == null) {
+            throw new IllegalStateException("No messages found for type " + notificationType + " for user " + userId);
+        }
+
+        LOG.info("Sending " + notificationType.name() + " notification to user " + userId);
 
         // Log in Dynamo that we notified this user
-        dynamoHelper.setLastNotificationTimeForUser(userId, DateUtils.getCurrentMillisFromEpoch());
+        UserNotification userNotification = new UserNotification();
+        userNotification.setMessage(message);
+        userNotification.setTime(DateUtils.getCurrentMillisFromEpoch());
+        userNotification.setType(notificationType);
+        userNotification.setUserId(userId);
+        dynamoHelper.setLastNotificationTimeForUser(userNotification);
 
         // Send SMS
-        bridgeHelper.sendSmsToUser(studyId, userId, workerConfig.getNotificationMessage());
+        bridgeHelper.sendSmsToUser(studyId, userId, message);
     }
 }
