@@ -3,56 +3,85 @@ package org.sagebionetworks.bridge.notification.worker;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.testng.annotations.Test;
 
 public class WorkerConfigTest {
+    private static final Map<String, String> DUMMY_MAP = ImmutableMap.of("dummy key", "dummy value");
     private static final Set<String> DUMMY_SET = ImmutableSet.of("dummy string");
 
     @Test
     public void burstStartEventIdSetNeverNull() {
-        // Initially empty
-        WorkerConfig config = new WorkerConfig();
-        assertTrue(config.getBurstStartEventIdSet().isEmpty());
-
-        // Set works
-        config.setBurstStartEventIdSet(DUMMY_SET);
-        assertEquals(config.getBurstStartEventIdSet(), DUMMY_SET);
-
-        // Set to null gives us an empty set
-        config.setBurstStartEventIdSet(null);
-        assertTrue(config.getBurstStartEventIdSet().isEmpty());
+        testSetNeverNull(WorkerConfig::getBurstStartEventIdSet, WorkerConfig::setBurstStartEventIdSet);
     }
 
     @Test
     public void excludedDataGroupSetNeverNull() {
-        // Initially empty
-        WorkerConfig config = new WorkerConfig();
-        assertTrue(config.getExcludedDataGroupSet().isEmpty());
+        testSetNeverNull(WorkerConfig::getExcludedDataGroupSet, WorkerConfig::setExcludedDataGroupSet);
+    }
 
-        // Set works
-        config.setExcludedDataGroupSet(DUMMY_SET);
-        assertEquals(config.getExcludedDataGroupSet(), DUMMY_SET);
+    @Test
+    public void missedCumulativeActivitiesMessagesByDataGroupNeverNull() {
+        testMapNeverNull(WorkerConfig::getMissedCumulativeActivitiesMessagesByDataGroup,
+                WorkerConfig::setMissedCumulativeActivitiesMessagesByDataGroup);
+    }
 
-        // Set to null gives us an empty set
-        config.setExcludedDataGroupSet(null);
-        assertTrue(config.getExcludedDataGroupSet().isEmpty());
+    @Test
+    public void missedEarlyActivitiesMessagesByDataGroupNeverNull() {
+        testMapNeverNull(WorkerConfig::getMissedEarlyActivitiesMessagesByDataGroup,
+                WorkerConfig::setMissedEarlyActivitiesMessagesByDataGroup);
+    }
+
+    @Test
+    public void missedLaterActivitiesMessagesByDataGroupNeverNull() {
+        testMapNeverNull(WorkerConfig::getMissedLaterActivitiesMessagesByDataGroup,
+                WorkerConfig::setMissedLaterActivitiesMessagesByDataGroup);
+    }
+
+    @Test
+    public void requiredDataGroupsOneOfSetNeverNull() {
+        testSetNeverNull(WorkerConfig::getRequiredDataGroupsOneOfSet, WorkerConfig::setRequiredDataGroupsOneOfSet);
     }
 
     @Test
     public void requiredSubpopulationGuidSetNeverNull() {
+        testSetNeverNull(WorkerConfig::getRequiredSubpopulationGuidSet, WorkerConfig::setRequiredSubpopulationGuidSet);
+    }
+
+    private static void testSetNeverNull(Function<WorkerConfig, Set<String>> getter,
+            BiConsumer<WorkerConfig, Set<String>> setter) {
         // Initially empty
         WorkerConfig config = new WorkerConfig();
-        assertTrue(config.getRequiredSubpopulationGuidSet().isEmpty());
+        assertTrue(getter.apply(config).isEmpty());
 
         // Set works
-        config.setRequiredSubpopulationGuidSet(DUMMY_SET);
-        assertEquals(config.getRequiredSubpopulationGuidSet(), DUMMY_SET);
+        setter.accept(config, DUMMY_SET);
+        assertEquals(getter.apply(config), DUMMY_SET);
 
         // Set to null gives us an empty set
-        config.setRequiredSubpopulationGuidSet(null);
-        assertTrue(config.getRequiredSubpopulationGuidSet().isEmpty());
+        setter.accept(config, null);
+        assertTrue(getter.apply(config).isEmpty());
+    }
+
+    // Set and Map don't have a shared parent class, so sadly, we'll need to duplicate the test twice.
+    private static void testMapNeverNull(Function<WorkerConfig, Map<String, String>> getter,
+            BiConsumer<WorkerConfig, Map<String, String>> setter) {
+        // Initially empty
+        WorkerConfig config = new WorkerConfig();
+        assertTrue(getter.apply(config).isEmpty());
+
+        // Set works
+        setter.accept(config, DUMMY_MAP);
+        assertEquals(getter.apply(config), DUMMY_MAP);
+
+        // Set to null gives us an empty set
+        setter.accept(config, null);
+        assertTrue(getter.apply(config).isEmpty());
     }
 }
