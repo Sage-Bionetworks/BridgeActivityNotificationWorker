@@ -40,7 +40,8 @@ public class WorkerConfig {
 
     /** @see #getBurstStartEventIdSet */
     public void setBurstStartEventIdSet(Set<String> burstStartEventIdSet) {
-        this.burstStartEventIdSet = burstStartEventIdSet != null ? burstStartEventIdSet : ImmutableSet.of();
+        this.burstStartEventIdSet = burstStartEventIdSet != null ? ImmutableSet.copyOf(burstStartEventIdSet) :
+                ImmutableSet.of();
     }
 
     /** Task ID that the participant is expected to complete or receive notifications. */
@@ -74,7 +75,8 @@ public class WorkerConfig {
 
     /** @see #getExcludedDataGroupSet */
     public void setExcludedDataGroupSet(Set<String> excludedDataGroupSet) {
-        this.excludedDataGroupSet = excludedDataGroupSet != null ? excludedDataGroupSet : ImmutableSet.of();
+        this.excludedDataGroupSet = excludedDataGroupSet != null ? ImmutableSet.copyOf(excludedDataGroupSet) :
+                ImmutableSet.of();
     }
 
     /**
@@ -89,7 +91,7 @@ public class WorkerConfig {
     public void setMissedCumulativeActivitiesMessagesByDataGroup(
             Map<String, String> missedCumulativeActivitiesMessagesByDataGroup) {
         this.missedCumulativeActivitiesMessagesByDataGroup = missedCumulativeActivitiesMessagesByDataGroup != null ?
-                missedCumulativeActivitiesMessagesByDataGroup : ImmutableMap.of();
+                ImmutableMap.copyOf(missedCumulativeActivitiesMessagesByDataGroup) : ImmutableMap.of();
     }
 
     /**
@@ -104,7 +106,7 @@ public class WorkerConfig {
     public void setMissedEarlyActivitiesMessagesByDataGroup(
             Map<String, String> missedEarlyActivitiesMessagesByDataGroup) {
         this.missedEarlyActivitiesMessagesByDataGroup = missedEarlyActivitiesMessagesByDataGroup != null ?
-                missedEarlyActivitiesMessagesByDataGroup : ImmutableMap.of();
+                ImmutableMap.copyOf(missedEarlyActivitiesMessagesByDataGroup) : ImmutableMap.of();
     }
 
     /**
@@ -119,7 +121,7 @@ public class WorkerConfig {
     public void setMissedLaterActivitiesMessagesByDataGroup(
             Map<String, String> missedLaterActivitiesMessagesByDataGroup) {
         this.missedLaterActivitiesMessagesByDataGroup = missedLaterActivitiesMessagesByDataGroup != null ?
-                missedLaterActivitiesMessagesByDataGroup : ImmutableMap.of();
+                ImmutableMap.copyOf(missedLaterActivitiesMessagesByDataGroup) : ImmutableMap.of();
     }
 
     /** Number of days at the start of the study burst where we don't send notifications. */
@@ -169,8 +171,8 @@ public class WorkerConfig {
 
     /** @see #getRequiredDataGroupsOneOfSet */
     public void setRequiredDataGroupsOneOfSet(Set<String> requiredDataGroupsOneOfSet) {
-        this.requiredDataGroupsOneOfSet = requiredDataGroupsOneOfSet != null ? requiredDataGroupsOneOfSet :
-                ImmutableSet.of();
+        this.requiredDataGroupsOneOfSet = requiredDataGroupsOneOfSet != null ?
+                ImmutableSet.copyOf(requiredDataGroupsOneOfSet) : ImmutableSet.of();
     }
 
     /** Set of subpopulations that the participant must be consented to in order to receive notifications. */
@@ -180,7 +182,7 @@ public class WorkerConfig {
 
     /** @see #getRequiredSubpopulationGuidSet */
     public void setRequiredSubpopulationGuidSet(Set<String> requiredSubpopulationGuidSet) {
-        this.requiredSubpopulationGuidSet = requiredSubpopulationGuidSet != null ? requiredSubpopulationGuidSet :
-                ImmutableSet.of();
+        this.requiredSubpopulationGuidSet = requiredSubpopulationGuidSet != null ?
+                ImmutableSet.copyOf(requiredSubpopulationGuidSet) : ImmutableSet.of();
     }
 }
