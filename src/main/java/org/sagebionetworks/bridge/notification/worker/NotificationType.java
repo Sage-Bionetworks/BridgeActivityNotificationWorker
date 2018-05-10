@@ -10,4 +10,7 @@ public enum NotificationType {
 
     /** Sent if the participant misses consecutive activities late in the study burst. */
     LATE,
+
+    /** Notification sent before the start of an activity burst. */
+    PRE_BURST,
 }

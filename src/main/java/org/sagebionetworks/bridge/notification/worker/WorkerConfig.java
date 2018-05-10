@@ -20,6 +20,7 @@ public class WorkerConfig {
     private int notificationBlackoutDaysFromEnd;
     private int numMissedConsecutiveDaysToNotify;
     private int numMissedDaysToNotify;
+    private Map<String, String> preburstMessagesByDataGroup = ImmutableMap.of();
     private Set<String> requiredDataGroupsOneOfSet = ImmutableSet.of();
     private Set<String> requiredSubpopulationGuidSet = ImmutableSet.of();
 
@@ -162,6 +163,20 @@ public class WorkerConfig {
     /** @see #getNumMissedDaysToNotify */
     public void setNumMissedDaysToNotify(int numMissedDaysToNotify) {
         this.numMissedDaysToNotify = numMissedDaysToNotify;
+    }
+
+    /**
+     * Messages to send before the start of the study burst, keyed by data group. The keys in this set should match the
+     * keys in {@link #getRequiredDataGroupsOneOfSet}.
+     */
+    public Map<String, String> getPreburstMessagesByDataGroup() {
+        return preburstMessagesByDataGroup;
+    }
+
+    /** @see #getPreburstMessagesByDataGroup */
+    public void setPreburstMessagesByDataGroup(Map<String, String> preburstMessagesByDataGroup) {
+        this.preburstMessagesByDataGroup = preburstMessagesByDataGroup != null ?
+                ImmutableMap.copyOf(preburstMessagesByDataGroup) : ImmutableMap.of();
     }
 
     /** Participant must be in one of these data groups to receive notifications. */
