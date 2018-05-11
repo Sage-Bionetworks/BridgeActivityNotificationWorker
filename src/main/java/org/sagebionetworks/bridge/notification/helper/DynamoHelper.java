@@ -37,6 +37,7 @@ public class DynamoHelper {
     static final String KEY_NOTIFICATION_TYPE = "notificationType";
     static final String KEY_NUM_MISSED_DAYS_TO_NOTIFY = "numMissedDaysToNotify";
     static final String KEY_NUM_MISSED_CONSECUTIVE_DAYS_TO_NOTIFY = "numMissedConsecutiveDaysToNotify";
+    static final String KEY_PREBURST_MESSAGES = "preburstMessagesByDataGroup";
     static final String KEY_REQUIRED_DATA_GROUPS = "requiredDataGroupsOneOfSet";
     static final String KEY_REQUIRED_SUBPOPULATION_GUID_SET = "requiredSubpopulationGuidSet";
     static final String KEY_STUDY_ID = "studyId";
@@ -96,6 +97,7 @@ public class DynamoHelper {
         workerConfig.setNotificationBlackoutDaysFromEnd(item.getInt(KEY_NOTIFICATION_BLACKOUT_DAYS_FROM_END));
         workerConfig.setNumMissedConsecutiveDaysToNotify(item.getInt(KEY_NUM_MISSED_CONSECUTIVE_DAYS_TO_NOTIFY));
         workerConfig.setNumMissedDaysToNotify(item.getInt(KEY_NUM_MISSED_DAYS_TO_NOTIFY));
+        workerConfig.setPreburstMessagesByDataGroup(item.getMap(KEY_PREBURST_MESSAGES));
         workerConfig.setRequiredDataGroupsOneOfSet(item.getStringSet(KEY_REQUIRED_DATA_GROUPS));
         workerConfig.setRequiredSubpopulationGuidSet(item.getStringSet(KEY_REQUIRED_SUBPOPULATION_GUID_SET));
         return workerConfig;

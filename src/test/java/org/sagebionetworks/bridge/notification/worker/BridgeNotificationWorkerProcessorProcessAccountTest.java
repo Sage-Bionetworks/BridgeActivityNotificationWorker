@@ -46,6 +46,7 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
     private static final String MESSAGE_EARLY_1 = "message-early-1";
     private static final String MESSAGE_EARLY_2 = "message-early-2";
     private static final String MESSAGE_LATE = "message-late";
+    private static final String MESSAGE_PRE_BURST = "message-pre-burst";
     private static final long MOCK_NOW_MILLIS = DateTime.parse("2018-04-30T16:41:15.831-0700").getMillis();
     private static final Phone PHONE = new Phone().regionCode("US").number("425-555-5555");
     private static final String REQUIRED_DATA_GROUP_1 = "required-group-1";
@@ -141,6 +142,9 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
         Map<String, String> missedLateMessageMap = ImmutableMap.of(
                 REQUIRED_DATA_GROUP_1, MESSAGE_LATE,
                 REQUIRED_DATA_GROUP_2, MESSAGE_LATE);
+        Map<String, String> preburstMessageMap = ImmutableMap.of(
+                REQUIRED_DATA_GROUP_1, MESSAGE_PRE_BURST,
+                REQUIRED_DATA_GROUP_2, MESSAGE_PRE_BURST);
 
         WorkerConfig config = new WorkerConfig();
         config.setBurstDurationDays(9);
@@ -155,6 +159,7 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
         config.setNotificationBlackoutDaysFromEnd(3);
         config.setNumMissedConsecutiveDaysToNotify(2);
         config.setNumMissedDaysToNotify(3);
+        config.setPreburstMessagesByDataGroup(preburstMessageMap);
         config.setRequiredDataGroupsOneOfSet(ImmutableSet.of(REQUIRED_DATA_GROUP_1, REQUIRED_DATA_GROUP_2));
         config.setRequiredSubpopulationGuidSet(ImmutableSet.of(REQUIRED_SUBPOP_1, REQUIRED_SUBPOP_2));
         when(mockDynamoHelper.getNotificationConfigForStudy(STUDY_ID)).thenReturn(config);
@@ -327,6 +332,29 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
         activityList.get(3).setStatus(ScheduleStatus.FINISHED);
         processor.processAccountForDate(STUDY_ID, ENROLLMENT_DATE.plusDays(4), ACCOUNT_SUMMARY);
         verifySentNotification(NotificationType.CUMULATIVE, MESSAGE_CUMULATIVE);
+    }
+
+    @Test
+    public void preburstNotification() throws Exception {
+        // Technically, the notification worker will never process a user _before_ they're enrolled. But for the
+        // purposes of this test, this represents sending the pre-burst notification a day before the start of burst.
+        processor.processAccountForDate(STUDY_ID, ENROLLMENT_DATE.minusDays(1), ACCOUNT_SUMMARY);
+        verifySentNotification(NotificationType.PRE_BURST, MESSAGE_PRE_BURST);
+    }
+
+    @Test
+    public void preburstDoesNotPreventNormalNotification() throws Exception {
+        // Mock preburst notification in the log.
+        UserNotification userNotification = new UserNotification();
+        userNotification.setMessage(MESSAGE_PRE_BURST);
+        userNotification.setTime(ENROLLMENT_TIME.minusDays(1).getMillis());
+        userNotification.setType(NotificationType.PRE_BURST);
+        userNotification.setUserId(USER_ID);
+        when(mockDynamoHelper.getLastNotificationTimeForUser(USER_ID)).thenReturn(userNotification);
+
+        // User should still get a notification.
+        processor.processAccountForDate(STUDY_ID, TEST_DATE, ACCOUNT_SUMMARY);
+        verifySentNotification(NotificationType.EARLY, MESSAGE_EARLY_1);
     }
 
     @Test

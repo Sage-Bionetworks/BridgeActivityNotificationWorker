@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Stopwatch;
@@ -154,8 +155,27 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
             return;
         }
 
-        // Get the current activity burst.
-        ActivityEvent burstEvent = getCurrentActivityBurstEventForParticipant(studyId, date, participant);
+        // Get user's activity events. Filter events that aren't study burst starts.
+        WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
+        List<ActivityEvent> activityEventList = bridgeHelper.getActivityEvents(studyId, participant.getId());
+        List<ActivityEvent> filteredActivityEventList = activityEventList.stream()
+                .filter(activityEvent -> workerConfig.getBurstStartEventIdSet().contains(activityEvent.getEventId()))
+                .collect(Collectors.toList());
+
+        // Find the upcoming burst, if a burst is coming up tomorrow.
+        ActivityEvent upcomingBurstEvent = findUpcomingActivityBurstEvent(date, participant,
+                filteredActivityEventList);
+        if (upcomingBurstEvent != null) {
+            // Notify user of upcoming burst.
+            notifyUser(studyId, participant, NotificationType.PRE_BURST);
+
+            // If the burst starts tomorrow, no need to check if the user is in the middle of a burst.
+            return;
+        }
+
+        // Find the current activity burst.
+        ActivityEvent burstEvent = findCurrentActivityBurstEventForParticipant(studyId, date, participant,
+                filteredActivityEventList);
         if (burstEvent == null) {
              // We're not currently in an activity burst. (Or we are, but we're in the blackout period.) Skip
             // processing this user.
@@ -214,12 +234,12 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         }
 
         // If user was already sent a notification in the last burst duration, don't send another one
+        // Special case: If that notification was a PRE_BURST notification, that's fine.
         UserNotification lastNotification = dynamoHelper.getLastNotificationTimeForUser(participant.getId());
-        if (lastNotification != null) {
-            long notificationTime = lastNotification.getTime();
-            if (notificationTime > DateTime.now().minusDays(workerConfig.getBurstDurationDays()).getMillis()) {
-                return true;
-            }
+        if (lastNotification != null &&
+                lastNotification.getTime() > DateTime.now().minusDays(workerConfig.getBurstDurationDays()).getMillis() &&
+                lastNotification.getType() != NotificationType.PRE_BURST) {
+            return true;
         }
 
         // We've checked all the exclude conditions. Do not exclude user.
@@ -249,18 +269,27 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         return true;
     }
 
-    // Helper method to determine the study burst event that we should be processing for this user.
-    private ActivityEvent getCurrentActivityBurstEventForParticipant(String studyId, LocalDate date,
-            StudyParticipant participant) throws IOException {
-        WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
-        List<ActivityEvent> activityEventList = bridgeHelper.getActivityEvents(studyId, participant.getId());
+    // Helper method to determine if there's an upcoming study burst coming up tomorrow.
+    private ActivityEvent findUpcomingActivityBurstEvent(LocalDate date, StudyParticipant participant,
+            List<ActivityEvent> activityEventList) {
+        DateTimeZone timeZone = DateUtils.parseZoneFromOffsetString(participant.getTimeZone());
 
         for (ActivityEvent oneActivityEvent : activityEventList) {
-            // Skip if this event isn't a burst start.
-            if (!workerConfig.getBurstStartEventIdSet().contains(oneActivityEvent.getEventId())) {
-                continue;
+            if (oneActivityEvent.getTimestamp().withZone(timeZone).toLocalDate().minusDays(1).equals(date)) {
+                // If the burst start is tomorrow, then we've found it!
+                return oneActivityEvent;
             }
+        }
 
+        // If we make it this far, we didn't find any activities starting tomorrow.
+        return null;
+    }
+
+    // Helper method to determine the study burst event that we should be processing for this user.
+    private ActivityEvent findCurrentActivityBurstEventForParticipant(String studyId, LocalDate date,
+            StudyParticipant participant, List<ActivityEvent> activityEventList) throws IOException {
+        WorkerConfig workerConfig = dynamoHelper.getNotificationConfigForStudy(studyId);
+        for (ActivityEvent oneActivityEvent : activityEventList) {
             // Calculate burst bounds. End date is start + period - 1. Skip if the current day is not within the burst
             // period (inclusive).
             DateTimeZone timeZone = DateUtils.parseZoneFromOffsetString(participant.getTimeZone());
@@ -383,6 +412,9 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
                 break;
             case LATE:
                 messagesByDataGroup = workerConfig.getMissedLaterActivitiesMessagesByDataGroup();
+                break;
+            case PRE_BURST:
+                messagesByDataGroup = workerConfig.getPreburstMessagesByDataGroup();
                 break;
             default:
                 throw new IllegalStateException("Unexpected type " + notificationType);

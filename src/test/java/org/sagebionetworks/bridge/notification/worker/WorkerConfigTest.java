@@ -45,6 +45,11 @@ public class WorkerConfigTest {
     }
 
     @Test
+    public void preburstMessagesByDataGroupNeverNull() {
+        testMapNeverNull(WorkerConfig::getPreburstMessagesByDataGroup, WorkerConfig::setPreburstMessagesByDataGroup);
+    }
+
+    @Test
     public void requiredDataGroupsOneOfSetNeverNull() {
         testSetNeverNull(WorkerConfig::getRequiredDataGroupsOneOfSet, WorkerConfig::setRequiredDataGroupsOneOfSet);
     }
