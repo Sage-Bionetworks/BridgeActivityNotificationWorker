@@ -98,6 +98,7 @@ public class DynamoHelperTest {
                 .withMap(DynamoHelper.KEY_MISSED_LATER_MESSAGES, missedLaterMessagesMap)
                 .withInt(DynamoHelper.KEY_NOTIFICATION_BLACKOUT_DAYS_FROM_START, 2)
                 .withInt(DynamoHelper.KEY_NOTIFICATION_BLACKOUT_DAYS_FROM_END, 1)
+                .withInt(DynamoHelper.KEY_NUM_ACTIVITIES_TO_COMPLETE, 6)
                 .withInt(DynamoHelper.KEY_NUM_MISSED_CONSECUTIVE_DAYS_TO_NOTIFY, 3)
                 .withInt(DynamoHelper.KEY_NUM_MISSED_DAYS_TO_NOTIFY, 4)
                 .withMap(DynamoHelper.KEY_PREBURST_MESSAGES, preburstMessagesMap)
@@ -119,6 +120,7 @@ public class DynamoHelperTest {
         assertEquals(config.getMissedLaterActivitiesMessagesByDataGroup(), missedLaterMessagesMap);
         assertEquals(config.getNotificationBlackoutDaysFromStart(), 2);
         assertEquals(config.getNotificationBlackoutDaysFromEnd(), 1);
+        assertEquals(config.getNumActivitiesToCompleteBurst(), 6);
         assertEquals(config.getNumMissedConsecutiveDaysToNotify(), 3);
         assertEquals(config.getNumMissedDaysToNotify(), 4);
         assertEquals(config.getPreburstMessagesByDataGroup(), preburstMessagesMap);

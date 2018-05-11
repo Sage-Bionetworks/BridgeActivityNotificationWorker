@@ -18,6 +18,7 @@ public class WorkerConfig {
     private Map<String, String> missedLaterActivitiesMessagesByDataGroup = ImmutableMap.of();
     private int notificationBlackoutDaysFromStart;
     private int notificationBlackoutDaysFromEnd;
+    private int numActivitiesToCompleteBurst;
     private int numMissedConsecutiveDaysToNotify;
     private int numMissedDaysToNotify;
     private Map<String, String> preburstMessagesByDataGroup = ImmutableMap.of();
@@ -143,6 +144,16 @@ public class WorkerConfig {
     /** @see #getNotificationBlackoutDaysFromEnd */
     public void setNotificationBlackoutDaysFromEnd(int notificationBlackoutDaysFromEnd) {
         this.notificationBlackoutDaysFromEnd = notificationBlackoutDaysFromEnd;
+    }
+
+    /** The total number of activities the participant needs to complete the study burst. */
+    public int getNumActivitiesToCompleteBurst() {
+        return numActivitiesToCompleteBurst;
+    }
+
+    /** @see #getNumActivitiesToCompleteBurst */
+    public void setNumActivitiesToCompleteBurst(int numActivitiesToCompleteBurst) {
+        this.numActivitiesToCompleteBurst = numActivitiesToCompleteBurst;
     }
 
     /** Number of consecutive days of missed activities before we send a notification. */

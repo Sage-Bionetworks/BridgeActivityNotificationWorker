@@ -35,6 +35,7 @@ public class DynamoHelper {
     static final String KEY_NOTIFICATION_BLACKOUT_DAYS_FROM_END = "notificationBlackoutDaysFromEnd";
     static final String KEY_NOTIFICATION_TIME = "notificationTime";
     static final String KEY_NOTIFICATION_TYPE = "notificationType";
+    static final String KEY_NUM_ACTIVITIES_TO_COMPLETE = "numActivitiesToCompleteBurst";
     static final String KEY_NUM_MISSED_DAYS_TO_NOTIFY = "numMissedDaysToNotify";
     static final String KEY_NUM_MISSED_CONSECUTIVE_DAYS_TO_NOTIFY = "numMissedConsecutiveDaysToNotify";
     static final String KEY_PREBURST_MESSAGES = "preburstMessagesByDataGroup";
@@ -95,6 +96,7 @@ public class DynamoHelper {
         workerConfig.setMissedLaterActivitiesMessagesByDataGroup(item.getMap(KEY_MISSED_LATER_MESSAGES));
         workerConfig.setNotificationBlackoutDaysFromStart(item.getInt(KEY_NOTIFICATION_BLACKOUT_DAYS_FROM_START));
         workerConfig.setNotificationBlackoutDaysFromEnd(item.getInt(KEY_NOTIFICATION_BLACKOUT_DAYS_FROM_END));
+        workerConfig.setNumActivitiesToCompleteBurst(item.getInt(KEY_NUM_ACTIVITIES_TO_COMPLETE));
         workerConfig.setNumMissedConsecutiveDaysToNotify(item.getInt(KEY_NUM_MISSED_CONSECUTIVE_DAYS_TO_NOTIFY));
         workerConfig.setNumMissedDaysToNotify(item.getInt(KEY_NUM_MISSED_DAYS_TO_NOTIFY));
         workerConfig.setPreburstMessagesByDataGroup(item.getMap(KEY_PREBURST_MESSAGES));

@@ -367,6 +367,7 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
         int daysMissed = 0;
         int consecutiveDaysMissed = 0;
         int numDays = 0;
+        int numActivitiesCompleted = 0;
         for (LocalDate d = burstStartDate; !d.isAfter(date); d = d.plusDays(1)) {
             ScheduledActivity daysActivity = activitiesByDate.get(d);
             if (daysActivity == null || daysActivity.getStatus() != ScheduleStatus.FINISHED) {
@@ -385,6 +386,13 @@ public class BridgeNotificationWorkerProcessor implements ThrowingConsumer<JsonN
                 }
             } else {
                 consecutiveDaysMissed = 0;
+                numActivitiesCompleted++;
+
+                if (numActivitiesCompleted >= workerConfig.getNumActivitiesToCompleteBurst()) {
+                    // Participant has completed requisite number of activities to complete the study burst. We won't
+                    // send a notification. No need to process any further.
+                    return null;
+                }
             }
 
             // Increment the day counter so we can determine early vs late.
