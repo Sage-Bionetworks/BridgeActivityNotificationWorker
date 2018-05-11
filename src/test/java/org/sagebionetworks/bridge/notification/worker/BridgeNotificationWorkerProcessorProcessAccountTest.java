@@ -156,7 +156,8 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
         config.setMissedEarlyActivitiesMessagesByDataGroup(missedEarlyMessageMap);
         config.setMissedLaterActivitiesMessagesByDataGroup(missedLateMessageMap);
         config.setNotificationBlackoutDaysFromStart(3);
-        config.setNotificationBlackoutDaysFromEnd(3);
+        config.setNotificationBlackoutDaysFromEnd(1);
+        config.setNumActivitiesToCompleteBurst(6);
         config.setNumMissedConsecutiveDaysToNotify(2);
         config.setNumMissedDaysToNotify(3);
         config.setPreburstMessagesByDataGroup(preburstMessageMap);
@@ -257,8 +258,8 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
 
     @Test
     public void blackoutTail() throws Exception {
-        // Last three days (6, 7, 8) are blackout days
-        processor.processAccountForDate(STUDY_ID, ENROLLMENT_DATE.plusDays(6), ACCOUNT_SUMMARY);
+        // Last days (8) is a blackout days
+        processor.processAccountForDate(STUDY_ID, ENROLLMENT_DATE.plusDays(8), ACCOUNT_SUMMARY);
         verifyNoNotification();
     }
 
@@ -285,6 +286,19 @@ public class BridgeNotificationWorkerProcessorProcessAccountTest {
         activityList.get(1).setStatus(ScheduleStatus.FINISHED);
         activityList.get(2).setStatus(ScheduleStatus.FINISHED);
         processor.processAccountForDate(STUDY_ID, TEST_DATE, ACCOUNT_SUMMARY);
+        verifyNoNotification();
+    }
+
+    @Test
+    public void dontNotifyIfCompletedBurst() throws Exception {
+        // Participant did days 0-5, then missed day 6 and 7. Burst is only 6 activities, so don't notify.
+        activityList.get(0).setStatus(ScheduleStatus.FINISHED);
+        activityList.get(1).setStatus(ScheduleStatus.FINISHED);
+        activityList.get(2).setStatus(ScheduleStatus.FINISHED);
+        activityList.get(3).setStatus(ScheduleStatus.FINISHED);
+        activityList.get(4).setStatus(ScheduleStatus.FINISHED);
+        activityList.get(5).setStatus(ScheduleStatus.FINISHED);
+        processor.processAccountForDate(STUDY_ID, ENROLLMENT_DATE.plusDays(7), ACCOUNT_SUMMARY);
         verifyNoNotification();
     }
 
